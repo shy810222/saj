@@ -11,24 +11,19 @@ var SAJLoader = function(){
   this.publicMethod = [];
 };
 
-SAJLoader.prototype.load = function(c){
+SAJLoader.prototype.load = function(c, b){
   var isClass = false;
   var isExtends = false;
   var isPrivate = false;
   var isPublic = false;
   var isMethod = false;
-  //console.log(c.replace(/\n*/g, ''));
   var s = c.split(/(?:\{)([\w\W]+)(?:\})/);
   var t = s[0].replace(/ /g, '').split(/(class|extends)+/g);
-  //console.log(t);
   var j = '';
   for(var i=1;i<s.length;i++){
     j += s[i];
   }
   s = t.concat(j.split(/(private|public)+/g));
-  //console.log(s);
-  //var s = c.replace(/\n*/g, '').split(/(private|public|class|extends)+/g);
-  //a.match(/(?:\{)([\w\W]+)(?:\})/);
   for(i=0;i<s.length;i++){
     isMethod = /([\w]+)\(([a-zA-Z0-9,_ ]*)\)/.test(s[i]);
     if(isClass){
@@ -38,21 +33,17 @@ SAJLoader.prototype.load = function(c){
       this.extendsName = s[i].match(/[\w]+/)[0];
       isExtends = false;
     }else if(isPrivate && !isMethod){
-      //console.log('[Private Variable]::', s[i]);
       this.setPrivateVariable(s[i]);
       isPrivate = false;
     }else if(isPublic && !isMethod){
-      //console.log('[Public Variable]::', s[i]);
       this.setPublicVariable(s[i]);
       isPublic = false;
     }else if(isPrivate && isMethod){
-      //console.log('[Private Method]::', s[i]);
       var funcStr = s[i].match(/([\w]+)\(([a-zA-Z0-9,_ ]*)\)\{([\w\W]*)(?:\};|\})/);
       this.setPrivateFunction(funcStr);
       isPrivate = false;
       isMethod = false;
     }else if(isPublic && isMethod){
-      //console.log('[Public Method:'+i+']::', s[i]);
       var funcStr = s[i].match(/([\w]+)\(([a-zA-Z0-9,_ ]*)\)\{([\w\W]*)(?:\};|\})/);
       this.setPublicFunction(funcStr);
       isPublic = false;
@@ -67,18 +58,7 @@ SAJLoader.prototype.load = function(c){
   this.validateFunction(this.classConstructor);
   this.validateFunction(this.privateMethod);
   this.validateFunction(this.publicMethod);
-  console.log('-------------------------------------------');
-  console.log('[this.className]::', this.className);
-  console.log('[this.extendsName]::', this.extendsName);
-  console.log('[this.classConstructor]::', this.classConstructor);
-  console.log('[this.publicKeys]::', this.publicKeys);
-  console.log('[this.privateVariables]::', this.privateVariables);
-  console.log('[this.publicVariables]::', this.publicVariables);
-  console.log('[this.privateMethod]::', this.privateMethod);
-  console.log('[this.publicMethod]::', this.publicMethod);
-  console.log('-------------------------------------------');
-  this.registrationFunction();
-  loadLength++;
+  this.registrationFunction(b);
 };
 
 SAJLoader.prototype.setPrivateVariable = function(s){
@@ -118,7 +98,6 @@ SAJLoader.prototype.setPublicFunction = function(s){
 };
 
 SAJLoader.prototype.validateFunction = function(f){
-  //console.log(f);
   for(var o=0;o<f.length;o++){
     var fs = '';
     var lines = f[o].func.split('\n');
@@ -133,7 +112,6 @@ SAJLoader.prototype.validateFunction = function(f){
       }
       is = false;
     }
-    //console.log(lines.join('\n'));
     f[o].func = lines.join('\n');
   }
 };

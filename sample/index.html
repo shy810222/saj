@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <script src="lib/saj.js"></script>
+    <script>
+      window.onload = function(){
+        var request = new XMLHttpRequest();
+        request.open('get', 'script/index.js', false);
+        request.onreadystatechange = function (e) {
+          if (request.readyState == 4) {
+            if(request.status == 200){
+              var loader = new SAJLoader();
+              loader.load(request.responseText, function(){
+                new Test();
+              });
+            }else{
+              console.log("Error loading Script\n");
+            }
+          }
+        };
+        request.send(null);
+      }
+    </script>
+  </head>
+  <body>
+    <button id="alert">click~!!</button>
+  </body>
+</html>

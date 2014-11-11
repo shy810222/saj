@@ -174,13 +174,23 @@ SAJLoader.prototype.validateFunction = function(f){
         var fs = '';
         var lines = f[o].func.split('\n'); //function 선언문을 줄바꿈으로 분리
         for(var i=0;i<this.publicKeys.length;i++){
-            var t = new RegExp('var '+this.publicKeys[i]+'+[ =]', 'g'); //구문에 public 변수명과 같은 이름으로 선언된 var 가 있는지 확인
-            var is = false;
+            var t1 = new RegExp('var '+this.publicKeys[i]+'+[ =]', 'g'); //구문에 public 변수명과 같은 이름으로 선언된 var 가 있는지 확인
+            var t2 = new RegExp('[ (]'+this.publicKeys[i], 'g'); //구문에 .으로 호출되었는지 확인
+            var isDeclare = false;
             for(var l=0;l<lines.length;l++){
-                if(!is){ is = t.test(lines[l]); }
-                if(!is){
-                    //public한 변수명일 경우 self를 붙여줌 (this는 스코프변경에 의한 문제 발생여지가 있지 때문에 내부적으로 선언된 self 변수 사용!!)
-                    lines[l] = lines[l].replace(new RegExp(this.publicKeys[i], 'g'), 'self.'+this.publicKeys[i]);
+                if(!isDeclare){//내부 선언이 되어 있는지 확인
+                    isDeclare = t1.test(lines[l]);
+                }
+                if(!isDeclare){//내부 선언이 없다면
+                    replaceStr = lines[l].match(t2); //전역변수인 문자열 추출
+                    if(replaceStr != null){ //사용된 전역변수가 있다면
+                        for(var r=0;r<replaceStr.length;r++){
+                            //public한 변수명일 경우 self를 붙여줌 (this는 스코프변경에 의한 문제 발생여지가 있지 때문에 내부적으로 선언된 self 변수 사용!!)
+                            var ts = replaceStr[r].replace(/\(/g, '\\('); //전역변수이름 중 (이 붙은 부분 \(로 변경
+                            var s = ts.replace(new RegExp(this.publicKeys[i], 'g'), 'self.'+this.publicKeys[i]); //javascript의 전역변수로 수정
+                            lines[l] = lines[l].replace(new RegExp(ts, 'g'), s.replace(/\\\(/g, '(')); //\(이 포함된 전역변수는 (으로 수정하여 한 라인의 문장에서 전역변수만 수정
+                        }
+                    }
                 }
             }
             is = false;

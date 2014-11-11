@@ -9,7 +9,7 @@
  * @author 송호영
 */
 var SAJLoader = function(){
-    this.isDebug = false; //디버깅 모드
+    this.debug = false; //디버깅 모드
     this.className = null; //클래스 이름
     this.extendsName = null; //부모 클래스 이름
     this.classConstructor = []; //생성자 함수
@@ -78,8 +78,8 @@ SAJLoader.prototype.load = function(c, b){
             isMethod = false; //function 구문 종료
         }
 
-        isClass = /class/.test(s[i]); //현재 구문이 클래스명인지 확인
-        isExtends = /extends/.test(s[i]); //현재 구문이 부모 클래스명인지 확인
+        isClass = /(class[ ]*)$/.test(s[i]); //현재 구문이 클래스명인지 확인
+        isExtends = /(extends[ ]*)$/.test(s[i]); //현재 구문이 부모 클래스명인지 확인
         isPrivate = /private/.test(s[i]); //현재 구문이 private한 변수, 혹은 function인지 확인
         isPublic = /public/.test(s[i]); //현재 구문이 public한 변수, 혹은 function인지 확인
     }

@@ -18,6 +18,7 @@ var SAJLoader = function(){
     this.publicVariables = []; //public 멤버변수 목록
     this.privateMethod = []; //private function 목록
     this.publicMethod = []; //public function 목록
+    this.staticMethod = []; //static function 목록
 };
 
 /**
@@ -32,6 +33,7 @@ SAJLoader.prototype.load = function(c, b){
     var isExtends = false; //부모 클래스명 진입 여부
     var isPrivate = false; //private한 변수 혹은 function 진입여부
     var isPublic = false; //public한 변수 혹은 function 진입여부
+    var isStatic = false; //static function 여부
     var isMethod = false; //function 진입여부
     /* 파싱 중 각 구문 진입여부 초기화 끝 */
 
@@ -50,10 +52,10 @@ SAJLoader.prototype.load = function(c, b){
     s = t.concat(j.split(/(private|public)+/g));//추출한 내용 합치기
     /* 구문별 문자열 추출 끝 */
 
-
     /* 구문별 설정 및 replace 시작 */
     for(i=0;i<s.length;i++){
         isMethod = /([\w]+)\(([a-zA-Z0-9,_ ]*)\)/.test(s[i]); //현재 구문이 function인지 확인
+        isStatic = /([ ]+static[ ]+)/.test(s[i]); //static한 function인지 확인
         if(isClass){ //현재 구문이 클래스 이름일 때
             this.className = s[i].match(/[\w]+/)[0]; //클래스 이름 추출
             isClass = false; //클래스 이름 구문 종료
@@ -66,14 +68,19 @@ SAJLoader.prototype.load = function(c, b){
         }else if(isPublic && !isMethod){ //현재 구문이 public하고 function이 아닐 때
             this.setPublicVariable(s[i]); //public 변수 담기
             isPublic = false; //public 변수 구문 종료
-        }else if(isPrivate && isMethod){ //현재 구문이 private하고 function일 때
+        }else if(isPrivate && isMethod && !isStatic){ //현재 구문이 private하고 function일 때
             var funcStr = s[i].match(/([\w]+)\(([a-zA-Z0-9,_ ]*)\)\{([\w\W]*)(?:\};|\})/); //function 이름, parameter, 내용 추출
             this.setPrivateFunction(funcStr); //private function 담기
             isPrivate = false; //private 구문 종료
             isMethod = false; //function 구문 종료
-        }else if(isPublic && isMethod){ //현재 구문이 public하고 function일 때
+        }else if(isPublic && isMethod && !isStatic){ //현재 구문이 public하고 function일 때
             var funcStr = s[i].match(/([\w]+)\(([a-zA-Z0-9,_ ]*)\)\{([\w\W]*)(?:\};|\})/); //function 이름, parameter, 내용 추출
             this.setPublicFunction(funcStr); //public function 담기
+            isPublic = false; //public 구문 종료
+            isMethod = false; //function 구문 종료
+        }else if(isMethod && isStatic){ //현재 구문이 static한 funnction일 때
+            var funcStr = s[i].match(/([\w]+)\(([a-zA-Z0-9,_ ]*)\)\{([\w\W]*)(?:\};|\})/); //function 이름, parameter, 내용 추출
+            this.setStaticFunction(funcStr); //public function 담기
             isPublic = false; //public 구문 종료
             isMethod = false; //function 구문 종료
         }
@@ -163,6 +170,22 @@ SAJLoader.prototype.setPublicFunction = function(s){
         this.publicKeys.push(s[1]);
         this.publicMethod.push(funcData);
     }
+};
+
+/**
+ * @param String s[0] - function 전체 선언문
+ * @param String s[1] - function명
+ * @param String s[2] - parameter들
+ * @param String s[3] - function 내부 선언문
+ * @Description static한 function을 javascript에 맞게 변형
+ */
+SAJLoader.prototype.setStaticFunction = function(s){
+    var funcData = {
+        name: s[1],
+        parameters: s[2].split(/[, ]+/),
+        func: s[3]
+    }
+    this.staticMethod.push(funcData);
 };
 
 /**
@@ -262,6 +285,19 @@ SAJLoader.prototype.registrationFunction = function(cb){
         c += this.classConstructor[i].func;
     }
     c += '\n};';
+
+    /* static function 설정 */
+    for(var i=0;i<this.staticMethod.length;i++){
+        c += this.className+'.'+this.staticMethod[i].name +' = function(';
+        var parameters = this.staticMethod[i].parameters
+        for(var p=0;p<parameters.length;p++){
+            if(p !== 0) c += ', ';
+            c += parameters[p];
+        }
+        c += ') {\n';
+        c += this.staticMethod[i].func;
+        c += '};\n';
+    }
 
     /* javascript로 바꾼 문자열 Blob데이터로 전환 및 script태그에 등록 */
     var b = new Blob([c], {type : "text/javascript"});

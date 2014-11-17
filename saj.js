@@ -8,7 +8,59 @@
  *
  * @author 송호영
 */
+
+/**
+ * @Description extends를 위해 로드할 모든 스크립트 문자열을 순차적으로 불러오고 최종적으로 prototype을 지정해줌
+ */
 var SAJLoader = function(){
+    this.count = 0; //로드된 function 수
+    this.total = 0; //총 로드할 function의 수
+    this.classList = []; //parsing이 완료된 function 문자열
+    this.cb = null; //모든 function 로드 되고서 실행될 callback function
+};
+
+/**
+ * @param Array l - 작성한 class 문자열 Array
+ * @param Function b javascript로 등록되고 나서 실행될 callback function
+ * @Description class 문자열에서 정보추출 및 javascript에 맞게 변형
+ */
+SAJLoader.prototype.load = function(l, b){
+    this.cb = b;
+    this.total = l.length;
+    for(var a=0;a<l.length;a++){
+        var c = l[a];
+        var cls = new SAJClass();
+        cls.load(this, c);
+        this.classList.push(cls);
+    }
+}
+
+/**
+ * @Description 모든 function 등록 후 prototype 지정
+ */
+SAJLoader.prototype.setExtends = function(){
+    var c = '';
+    for(var i=0;i<this.classList.length;i++){
+        var cls = this.classList[i];
+        if(cls.extendsName != null && cls.extendsName != ''){
+            c += cls.className+'.prototype = new '+cls.extendsName+'();\n';
+        }
+    }
+    var b = new Blob([c], {type : "text/javascript"});
+    var DOMURL = window.URL || window.webkitURL || window;
+    var url = DOMURL.createObjectURL(b);
+    var script = document.createElement('script');
+    script.src = url;
+    document.querySelector('head').appendChild(script);
+    script.addEventListener('load', function(){
+        if(this.cb != null && typeof this.cb === 'function') this.cb();
+    });
+}
+
+/**
+ * @Description 한개의 function(class)를 parsing하고 등록
+ */
+var SAJClass = function(){
     this.debug = false; //디버깅 모드
     this.className = null; //클래스 이름
     this.extendsName = null; //부모 클래스 이름
@@ -19,15 +71,14 @@ var SAJLoader = function(){
     this.privateMethod = []; //private function 목록
     this.publicMethod = []; //public function 목록
     this.staticMethod = []; //static function 목록
-};
+}
 
 /**
- * @param String c - 작성한 class 문자열
- * @param Function b javascript로 등록되고 나서 실행될 callback function
+ * @param function l SAJClass를 호출한 SAJLoader
+ * @param string c 작성한 class 문자열
  * @Description class 문자열에서 정보추출 및 javascript에 맞게 변형
  */
-SAJLoader.prototype.load = function(c, b){
-
+SAJClass.prototype.load = function(l, c){
     /* 파싱 중 각 구문 진입여부 초기화 시작 */
     var isClass = false; //클래스명 진입 여부
     var isExtends = false; //부모 클래스명 진입 여부
@@ -111,14 +162,14 @@ SAJLoader.prototype.load = function(c, b){
         console.log('-------------------------------------------');
     }
 
-    this.registrationFunction(b); //javascript 등록
+    this.registrationFunction(l); //javascript 등록
 };
 
 /**
  * @param String s - class 내부의 private하게 선언된 변수 문자열
  * @Description private한 변수 문자열을 javascript에 맞게 변형
  */
-SAJLoader.prototype.setPrivateVariable = function(s){
+SAJClass.prototype.setPrivateVariable = function(s){
     this.privateVariables.push('var '+s.trim());
 };
 
@@ -126,7 +177,7 @@ SAJLoader.prototype.setPrivateVariable = function(s){
  * @param String s - class 내부의 public하게 선언된 변수 문자열
  * @Description public한 변수 문자열을 javascript에 맞게 변형
  */
-SAJLoader.prototype.setPublicVariable = function(s){
+SAJClass.prototype.setPublicVariable = function(s){
     this.publicKeys.push(s.match(/([a-zA-Z0-9,_]+)[= ]/)[1]); //public한 변수명은 내부 function의 validate를 위하여 따로 담기
     this.publicVariables.push('this.'+s.trim());
 };
@@ -138,7 +189,7 @@ SAJLoader.prototype.setPublicVariable = function(s){
  * @param String s[3] - function 내부 선언문
  * @Description private한 function을 javascript에 맞게 변형
  */
-SAJLoader.prototype.setPrivateFunction = function(s){
+SAJClass.prototype.setPrivateFunction = function(s){
     var funcData = {
         name: 'var '+s[1],
         parameters: s[2].split(/[, ]+/),
@@ -158,7 +209,7 @@ SAJLoader.prototype.setPrivateFunction = function(s){
  * @param String s[3] - function 내부 선언문
  * @Description public한 function을 javascript에 맞게 변형
  */
-SAJLoader.prototype.setPublicFunction = function(s){
+SAJClass.prototype.setPublicFunction = function(s){
     var funcData = {
         name: 'this.'+s[1],
         parameters: s[2].split(/[, ]+/),
@@ -179,7 +230,7 @@ SAJLoader.prototype.setPublicFunction = function(s){
  * @param String s[3] - function 내부 선언문
  * @Description static한 function을 javascript에 맞게 변형
  */
-SAJLoader.prototype.setStaticFunction = function(s){
+SAJClass.prototype.setStaticFunction = function(s){
     var funcData = {
         name: s[1],
         parameters: s[2].split(/[, ]+/),
@@ -192,7 +243,7 @@ SAJLoader.prototype.setStaticFunction = function(s){
  * @param Array f - function 정보 Object 목록
  * @Description public한 function을 javascript에 맞게 변형
  */
-SAJLoader.prototype.validateFunction = function(f){
+SAJClass.prototype.validateFunction = function(f){
     for(var o=0;o<f.length;o++){
         var fs = '';
         var lines = f[o].func.split('\n'); //function 선언문을 줄바꿈으로 분리
@@ -226,7 +277,7 @@ SAJLoader.prototype.validateFunction = function(f){
  * @param Function cb javascript로 등록되고 나서 실행될 callback function
  * @Description parse 및 validate된 function 정보로 javascript 등록
  */
-SAJLoader.prototype.registrationFunction = function(cb){
+SAJClass.prototype.registrationFunction = function(l){
 
     /* function 명 설정 */
     var c = 'var '+this.className+' = function(';
@@ -307,6 +358,7 @@ SAJLoader.prototype.registrationFunction = function(cb){
     script.src = url;
     document.querySelector('head').appendChild(script);
     script.addEventListener('load', function(){
-        if(typeof cb === 'function') cb();
+        l.count++;
+        if(l.count == l.total) l.setExtends();
     });
 };
